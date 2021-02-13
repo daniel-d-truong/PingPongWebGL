@@ -3,17 +3,47 @@
     <head>
         <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
         <meta name="viewport" content="width=device-width, user-scalable=no" />
-        <title>WebGL Ping Pong by @MortimerGoro</title>
+        <title>WebGL Ping Pong by Daniel & Ronak :)</title>
         
+        <script src="http://localhost:4000/socket.io/socket.io.js"></script>
+        <script type="text/javascript" src="src/sockets.js"></script>
         <script type="text/javascript" src="lib/three.min.js"></script>
         <script type="text/javascript" src="src/physics.js"></script>
         <script type="text/javascript" src="src/AI.js"></script>
         <script type="text/javascript" src="src/audio.js"></script>
         <script type="text/javascript" src="src/pingpong.js"></script>
         <script type="text/javascript" src="src/main.js"></script>
+
+        <link rel="stylesheet" href="style.css">
+
     </head>
     
     <body style="position:absolute;padding:0;margin:0;width:100%;height:100%">
+        <div id="play-match">
+            <div class="input-row">
+                <p>Room Name</p>
+                <input id="room-name" value="pogchamps"></input>
+            </div>
+            <br>
+            <div class="input-row">
+                <p>Player Name</p>
+                <input id="player-name" ></input>
+            </div>
+            <button onClick="joinRoom()">Join Room</button>
+        </div>
+
+        <div id="scorebox">
+            <div class="player-box">
+                <p id="player-name">Player</p>
+                <p id="player-score"><b>0</b></p>
+            </div>
+            <div class="player-box">
+                <p id="opponent-name">Opponent</p>
+                <p id="opponent-score"><b>0</b></p>
+            </div>
+        </div>
+
     	<div id="container"></div>
+        <div id="snackbar">Some text some message..</div>
     </body>
 </html>

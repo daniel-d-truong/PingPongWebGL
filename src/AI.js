@@ -40,10 +40,10 @@ PingPong.AI.prototype = {
         
         if (this.simulation.getLinearVelocity().z > 0){
             //ball going against opponent
-            targetPos.set(0, tableSize.height, -tableSize.depth * 0.5);
+            // targetPos.set(0, tableSize.height, -tableSize.depth * 0.5);
         }
         else {
-            targetPos.set(ballPos.x, tableSize.height, -tableSize.depth * 0.5);   
+            // targetPos.set(ballPos.x, tableSize.height, -tableSize.depth * 0.5);   
             
             var hitting = false;
             var hit = false;
