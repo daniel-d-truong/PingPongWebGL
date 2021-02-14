@@ -60,6 +60,8 @@ PingPong.Physics.prototype = {
         ball.position.x += linearVelocity.x;
         ball.position.y += linearVelocity.y + vg;
         ball.position.z += linearVelocity.z;
+
+        // broadcast ball position here
         
         ballBoundingBox.setFromCenterAndSize(ball.position, new THREE.Vector3(ballRadius,ballRadius,ballRadius));
         

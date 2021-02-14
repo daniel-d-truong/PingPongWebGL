@@ -8,7 +8,7 @@
 (function () {
   window.PingPong = window.PingPong || {};
 
-  var camera, scene, controls;
+  var camera, cameraAI, scene, controls;
   var screenSize, tableSize, paddleSize, ballSize;
   var paddle, paddleAI;
   var paddleTrajectory = [];
@@ -45,9 +45,20 @@
         0.5,
         20
       );
+      cameraAI = new THREE.PerspectiveCamera(
+        45,
+        screenSize.width / screenSize.height,
+        20,
+        0.5
+      );  
+
       scene.add(camera);
+      scene.add(cameraAI);
+
       camera.position.set(0, this.settings.height / 2, this.settings.depth / 2);
+      cameraAI.position.set(0, this.settings.height / 2, -this.settings.depth / 2);
       camera.lookAt(scene.position);
+      cameraAI.lookAt(scene.position);
 
       //initialize audio
       PingPong.Audio.init(this.settings);
@@ -61,12 +72,59 @@
       this.loadModels();
       this.initInput();
 
+      const normalize = (x, y) => {
+        var px = (x / screenSize.width) * 2 - 1;
+        var py = -(y / screenSize.height) * 2 + 1;
+
+        // set camera position
+        var cx = tableSize.width * 0.5 * px;
+        var cy = tableSize.height * 1.5; // + tableSize.height * 0.3 * py;
+        var cz = -(tableSize.depth / 2) * 3 * Math.abs(py);
+        cz = Math.max(cz, tableSize.depth * 0.3);
+        cameraAI.position.set(cx, cy, cz);
+        cameraAI.lookAt(new THREE.Vector3(0, tableSize.height, 0));
+
+        cameraAI.rotation.y = Math.PI * -0.05 * px;
+
+        //Project input to table plane
+        var maxpy = Math.min(0, py);
+        var vector = new THREE.Vector3(px, maxpy, 0.5);
+        projector.unprojectVector(vector, cameraAI);
+        var ray = new THREE.Ray(
+          cameraAI.position,
+          vector.sub(cameraAI.position).normalize()
+        );
+        var intersect = ray.intersectPlane(inputPlane);
+
+        if (!intersect) {
+          intersect = paddleAI.position.clone();
+        }
+        intersect.z = Math.min(intersect.z, -tableSize.depth * 0.05);
+
+        //set paddle position
+        paddleAI.position.x = intersect.x;
+        paddleAI.position.z = intersect.z;
+        paddleAI.position.y = tableSize.height;
+      };
+
       socket.on("update", (room) => {
         // get player that is not me
         // somehow get the player that is not me
-        delete room.players[roomName];
-        const opponent = room.players[Object.keys(room.players)[0]];
-        paddleAI.position.set(opponent.x, opponent.y, tableSize.depth / 2);
+        if (room.name !== roomName) {
+          return; // backend whyyyy
+        }
+        const opponentName = Object.keys(room.players).filter(p => p !== playerName)[0];
+        if (!opponentName) {
+          return;
+        }
+        const opponent = room.players[opponentName];
+        document.getElementById("opponent-name").innerHTML = opponent.name;
+
+        const opponentX = opponent.x * screenSize.width;
+        const opponentY = opponent.y * screenSize.height;
+        
+        console.log(`${opponentX}, ${opponentY}`);
+        normalize(opponentX, opponentY)
         this.update();
       });
     },
@@ -235,6 +293,15 @@
         );
         var vector = new THREE.Vector3(0, tableSize.height, 0);
         camera.lookAt(vector);
+        
+        //Initial camera position according to the table size
+        cameraAI.position.set(
+          0,
+          tableSize.height * 1.7,
+          -(tableSize.depth / 2) * 2.3
+        );
+        var vector = new THREE.Vector3(0, tableSize.height, 0);
+        cameraAI.lookAt(vector);
 
         //Initialize the inputPlane
         inputPlane = new THREE.Plane(
@@ -333,7 +400,8 @@
     processInput: function (x, y) {
       input.x = x;
       input.y = y;
-      tellServer(x, y);
+
+      tellServer(x / screenSize.width, y / screenSize.height);
     },
 
     serve: function () {
@@ -377,10 +445,10 @@
         return;
       }
 
-      if (state === STATES.PLAYING) {
-        this.ai.play();
-        this.simulation.simulate();
-      }
+      // if (state === STATES.PLAYING) {
+      this.ai.play();
+      this.simulation.simulate();
+      // }
 
       //normalize input
       var px = (input.x / screenSize.width) * 2 - 1;
@@ -431,10 +499,10 @@
         1,
         Math.abs(paddle.position.x / (tableSize.width * 0.6))
       );
-      var dxAI = Math.min(
-        1,
-        Math.abs(paddleAI.position.x / (tableSize.width * 0.6))
-      );
+      // var dxAI = Math.min(
+      //   1,
+      //   Math.abs(paddleAI.position.x / (tableSize.width * 0.6))
+      // );
 
       paddle.rotation.z =
         Math.PI * 0.5 * dx * (paddle.position.x > 0 ? -1.0 : 1.0);
@@ -442,12 +510,12 @@
       paddle.rotation.y =
         Math.PI * 0.2 * dx * (paddle.position.x > 0 ? 1.0 : -1.0);
 
-      paddleAI.rotation.z =
-        Math.PI * 0.5 * dxAI * (paddleAI.position.x > 0 ? 1.0 : -1.0);
-      paddleAI.rotation.x = -Math.PI * 0.2 * dxAI;
-      paddleAI.rotation.y =
-        Math.PI * 0.2 * dxAI * (paddleAI.position.x > 0 ? -1.0 : 1.0);
-      paddleAI.rotation.y += Math.PI;
+      // paddleAI.rotation.z =
+      //   Math.PI * 0.5 * dxAI * (paddleAI.position.x > 0 ? 1.0 : -1.0);
+      // paddleAI.rotation.x = -Math.PI * 0.2 * dxAI;
+      // paddleAI.rotation.y =
+      //   Math.PI * 0.2 * dxAI * (paddleAI.position.x > 0 ? -1.0 : 1.0);
+      // paddleAI.rotation.y += Math.PI;
     },
 
     checkBallHit: function () {

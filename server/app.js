@@ -3,6 +3,8 @@ const cors = require("cors");
 const app = express();
 const uuid = require("uuid");
 const { Room, Player } = require("./room");
+const path = require('path');
+
 
 app.use(cors());
 const http = require("http").Server(app);
@@ -28,10 +30,12 @@ io.on("connection", async (socket) => {
       // join room
       rooms[roomName].filled = true;
       rooms[roomName].join(new Player(data.playerName));
+      socket.join(roomName);
     } else {
       console.log(`${playerName} is creating room ${roomName}`);
       rooms[roomName] = new Room(roomName);
       rooms[roomName].join(new Player(playerName));
+      socket.join(roomName);
     }
   });
 
@@ -45,9 +49,15 @@ io.on("connection", async (socket) => {
     if (!player) { return; }
     player.x = data.x;
     player.y = data.y;
-    socket.broadcast.emit("update", room);
+    io.to(roomName).emit("update", room);
   })
 });
+
+app.use(express.static(__dirname + "/website"));
+
+app.get("/", (req, res) => {
+  res.sendFile(path.join(__dirname + "/website/index.html"));
+})
 
 http.listen(4000, () => {
   console.log("we are live!")
