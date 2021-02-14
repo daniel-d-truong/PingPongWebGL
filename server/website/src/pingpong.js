@@ -50,13 +50,17 @@
         screenSize.width / screenSize.height,
         20,
         0.5
-      );  
+      );
 
       scene.add(camera);
       scene.add(cameraAI);
 
       camera.position.set(0, this.settings.height / 2, this.settings.depth / 2);
-      cameraAI.position.set(0, this.settings.height / 2, -this.settings.depth / 2);
+      cameraAI.position.set(
+        0,
+        this.settings.height / 2,
+        -this.settings.depth / 2
+      );
       camera.lookAt(scene.position);
       cameraAI.lookAt(scene.position);
 
@@ -72,43 +76,87 @@
       this.loadModels();
       this.initInput();
 
-      const normalize = (x, y) => {
+      // const normalize = (x, y) => {
+      //   var px = (x / screenSize.width) * 2 - 1;
+      //   var py = -(y / screenSize.height) * 2 + 1;
+
+      //   // set camera position
+      //   var cx = tableSize.width * 0.5 * px;
+      //   var cy = tableSize.height * 1.5; // + tableSize.height * 0.3 * py;
+      //   var cz = -(tableSize.depth / 2) * 3 * Math.abs(py);
+      //   cz = Math.max(cz, tableSize.depth * 0.3);
+      //   cameraAI.position.set(cx, cy, cz);
+      //   cameraAI.lookAt(new THREE.Vector3(0, tableSize.height, 0));
+
+      //   cameraAI.rotation.y = Math.PI * -0.05 * px;
+
+      //   //Project input to table plane
+      //   var maxpy = Math.min(0, py);
+      //   var vector = new THREE.Vector3(px, maxpy, 0.5);
+      //   projector.unprojectVector(vector, cameraAI);
+      //   var ray = new THREE.Ray(
+      //     cameraAI.position,
+      //     vector.sub(cameraAI.position).normalize()
+      //   );
+      //   var intersect = ray.intersectPlane(inputPlane);
+
+      //   if (!intersect) {
+      //     intersect = paddleAI.position.clone();
+      //   }
+      //   intersect.z = Math.min(intersect.z, -tableSize.depth * 0.05);
+
+      //   //set paddle position
+      //   paddleAI.position.x = intersect.x;
+      //   paddleAI.position.z = intersect.z;
+      //   paddleAI.position.y = tableSize.height;
+      // };
+
+      const setOtherPaddle = (x, y) => {
+        //normalize input
         var px = (x / screenSize.width) * 2 - 1;
         var py = -(y / screenSize.height) * 2 + 1;
 
-        // set camera position
+        //set camera position
         var cx = tableSize.width * 0.5 * px;
         var cy = tableSize.height * 1.5; // + tableSize.height * 0.3 * py;
-        var cz = -(tableSize.depth / 2) * 3 * Math.abs(py);
+        var cz = (tableSize.depth / 2) * 3 * Math.abs(py);
         cz = Math.max(cz, tableSize.depth * 0.3);
-        cameraAI.position.set(cx, cy, cz);
-        cameraAI.lookAt(new THREE.Vector3(0, tableSize.height, 0));
+        let oldCameraPos = camera.position;
+        camera.position.set(cx, cy, cz);
+        camera.lookAt(new THREE.Vector3(0, tableSize.height, 0));
 
-        cameraAI.rotation.y = Math.PI * -0.05 * px;
+        //camera.rotation.y = Math.PI * -0.05 * px;
 
         //Project input to table plane
         var maxpy = Math.min(0, py);
         var vector = new THREE.Vector3(px, maxpy, 0.5);
-        projector.unprojectVector(vector, cameraAI);
+        projector.unprojectVector(vector, camera);
         var ray = new THREE.Ray(
-          cameraAI.position,
-          vector.sub(cameraAI.position).normalize()
+          camera.position,
+          vector.sub(camera.position).normalize()
         );
         var intersect = ray.intersectPlane(inputPlane);
 
         if (!intersect) {
-          intersect = paddleAI.position.clone();
+          intersect = paddle.position.clone();
         }
-        intersect.z = Math.min(intersect.z, -tableSize.depth * 0.05);
+        intersect.z = Math.max(intersect.z, tableSize.depth * 0.05);
 
         //set paddle position
         paddleAI.position.x = intersect.x;
         paddleAI.position.z = intersect.z;
         paddleAI.position.y = tableSize.height;
+
+        let opponentPos = paddleAI.position // from socketio, client side position
+        let posPrime = inputPlane.projectPoint(opponentPos);
+        let reflectedPoint = posPrime + (posPrime - position)
+        paddleAI.position = reflectedPoint;
+
+        // reset back to og state
+        camera.position = oldCameraPos;
       };
 
       socket.on("update", (room) => {
-        
         // get player that is not me
         // somehow get the player that is not me
         if (room.name !== roomName) {
@@ -123,7 +171,9 @@
           primarySet = true;
           isPrimary = false;
         }
-        const opponentName = Object.keys(room.players).filter(p => p !== playerName)[0];
+        const opponentName = Object.keys(room.players).filter(
+          (p) => p !== playerName
+        )[0];
         if (!opponentName) {
           return;
         }
@@ -132,8 +182,8 @@
 
         const opponentX = opponent.x * screenSize.width;
         const opponentY = opponent.y * screenSize.height;
-        
-        normalize(opponentX, opponentY)
+
+        setOtherPaddle(opponentX, opponentY);
         this.update();
       });
     },
@@ -268,7 +318,7 @@
         );
         me.simulation.addBox(tablebox);
 
-        var wallMode = false;
+        var wallMode = true;
         if (wallMode) {
           var netBox = new THREE.Box3();
           netBox.setFromCenterAndSize(
@@ -302,7 +352,7 @@
         );
         var vector = new THREE.Vector3(0, tableSize.height, 0);
         camera.lookAt(vector);
-        
+
         //Initial camera position according to the table size
         cameraAI.position.set(
           0,
@@ -592,6 +642,77 @@
 
         dir.y -= force * 2;
         if (paddle.position.z < tableSize.depth / 2) {
+          dir.y -= 0.1;
+        }
+
+        this.simulation.hitBall(dir, force);
+        paddleTrajectory.length = 0; //clear
+      }
+      this.checkAIBallHit();
+    },
+
+    checkAIBallHit: function () {
+      var hitting = false;
+      var hit = false;
+      //check if paddle and ball are close
+      if (
+        this.simulation.getLinearVelocity().z > 0 &&
+        paddleAI.position.z > ball.position.z
+      ) {
+        //store trayectory
+        var trayectory = {
+          time: Date.now(),
+          x: paddleAI.position.x,
+          y: paddleAI.position.y,
+          z: paddleAI.position.z,
+        };
+        paddleTrajectory.push(trayectory);
+
+        //check hit distances
+        var zDistance = paddleAI.position.z - ball.position.z;
+        var xDistance = Math.abs(paddleAI.position.x - ball.position.x);
+        var yDistance = paddleAI.position.y - ball.position.y;
+        hit =
+          zDistance < tableSize.depth * 0.03 &&
+          xDistance < paddleSize.width &&
+          Math.abs(yDistance) < paddleSize.height * 0.75;
+        hitting =
+          zDistance < tableSize.depth * 0.2 && xDistance < paddleSize.width;
+      }
+
+      //target paddle y position
+      var targetY = tableSize.height;
+      if (hitting) {
+        targetY = ball.position.y;
+      }
+      var diffY = paddleAI.position.y - targetY;
+      paddleAI.position.y +=
+        Math.min(Math.abs(diffY), paddleSize.height * 0.1) * (diffY ? -1 : 1);
+
+      if (hit) {
+        var trayectory = this.calculatePaddleTrajectory();
+        trayectory.z = Math.min(trayectory.z, 0);
+
+        var dir = new THREE.Vector3(0, 0, 0);
+        //fixed z
+        dir.z = -1.0;
+        //trayector dependant x
+        var tx = trayectory.x / (tableSize.width * 0.1);
+        dir.x = 0.6 * Math.min(Math.abs(tx), 1.0) * (tx > 0 ? 1 : -1);
+        //trayectory dependant force and y
+        var tz = trayectory.z / (tableSize.depth * 0.25);
+        tz = Math.min(Math.abs(tz), 1);
+        var force = 0.02 + tz * 0.01;
+
+        dir.y = 0.4;
+        if (ball.position.y < tableSize.height) {
+          dir.y += 0.1;
+        } else {
+          force *= 1.1;
+        }
+
+        dir.y -= force * 2;
+        if (paddleAI.position.z < tableSize.depth / 2) {
           dir.y -= 0.1;
         }
 
