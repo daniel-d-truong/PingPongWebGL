@@ -22,7 +22,8 @@ PingPong.Physics = function() {
     this.ball = null;
     this.boxes=[];
 
-    socket.on("ball", (position) => {
+    socket.on("recieveballupdate", (position) => {
+        console.log(position)
         if (primarySet && !isPrimary) {
             // we are getting ball position here
             this.ball.position = position;   
@@ -73,7 +74,10 @@ PingPong.Physics.prototype = {
             ball.position.x += linearVelocity.x;
             ball.position.y += linearVelocity.y + vg;
             ball.position.z += linearVelocity.z;
-            socket.emit("ball", ball.position);
+            socket.emit("updateballposition", {
+                roomName, playerName,
+                position: ball.position
+            });
         }
         
         ballBoundingBox.setFromCenterAndSize(ball.position, new THREE.Vector3(ballRadius,ballRadius,ballRadius));

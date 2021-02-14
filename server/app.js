@@ -25,7 +25,7 @@ io.on("connection", async (socket) => {
   socket.on("join", (data) => {
     const {roomName, playerName} = data;
     console.log(`${playerName} is trying to join room ${roomName}`);
-    
+
     if (rooms[roomName] && !rooms[roomName].filled) {
       console.log(`${playerName} has joined room ${roomName}`);
 
@@ -54,6 +54,18 @@ io.on("connection", async (socket) => {
     player.x = data.x;
     player.y = data.y;
     io.to(roomName).emit("update", room);
+  });
+
+  socket.on("updateballposition", (data) => {
+    const {roomName, playerName} = data;
+    if (!roomName) { return; }
+    const room = rooms[roomName]
+    if (!room) { return; }
+
+    console.log(`in match ${roomName}, ${playerName} the ball is at ${JSON.stringify(data.position)}`);
+
+    room.ballPosition = data.position;
+    io.to(roomName).emit("recieveballupdate", room.ballPosition);
   })
 });
 
