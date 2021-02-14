@@ -108,10 +108,20 @@
       };
 
       socket.on("update", (room) => {
+        
         // get player that is not me
         // somehow get the player that is not me
         if (room.name !== roomName) {
           return; // backend whyyyy
+        }
+        state = STATES.PLAYING;
+
+        if (room.primary === playerName) {
+          primarySet = true;
+          isPrimary = true;
+        } else {
+          primarySet = true;
+          isPrimary = false;
         }
         const opponentName = Object.keys(room.players).filter(p => p !== playerName)[0];
         if (!opponentName) {
@@ -123,7 +133,6 @@
         const opponentX = opponent.x * screenSize.width;
         const opponentY = opponent.y * screenSize.height;
         
-        console.log(`${opponentX}, ${opponentY}`);
         normalize(opponentX, opponentY)
         this.update();
       });
@@ -405,6 +414,9 @@
     },
 
     serve: function () {
+      if (primarySet && !isPrimary) {
+        return;
+      }
       state = STATES.PLAYING;
       ball.position.set(
         paddle.position.x,

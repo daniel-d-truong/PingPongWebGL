@@ -25,16 +25,20 @@ io.on("connection", async (socket) => {
   socket.on("join", (data) => {
     const {roomName, playerName} = data;
     console.log(`${playerName} is trying to join room ${roomName}`);
+    
     if (rooms[roomName] && !rooms[roomName].filled) {
       console.log(`${playerName} has joined room ${roomName}`);
+
       // join room
       rooms[roomName].filled = true;
       rooms[roomName].join(new Player(data.playerName));
       socket.join(roomName);
     } else {
       console.log(`${playerName} is creating room ${roomName}`);
+
       rooms[roomName] = new Room(roomName);
       rooms[roomName].join(new Player(playerName));
+      rooms[roomName].primary = playerName;
       socket.join(roomName);
     }
   });

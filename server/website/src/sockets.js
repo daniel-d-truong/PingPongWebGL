@@ -1,7 +1,7 @@
 var socket = io("ws://localhost:4000", {
   reconnectionDelayMax: 10000,
 });
-
+var primarySet = false, isPrimary = false;
 var roomName = "",
   playerName = "";
 var socketInitialized = false;
